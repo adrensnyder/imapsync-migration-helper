@@ -70,6 +70,10 @@ echo ""
 
 for file in "${LASTLOGS[@]}"; do
         echo -e "- ${RED}$file${NC}"
-        grep "does not exist" "$file" |grep -v imapsync | grep -vP "($EXCLUDE)"
+        #grep "does not exist" "$file" |grep -v imapsync | grep -vP "($EXCLUDE)"
+        grep "does not exist" "$file" \
+          | grep -v imapsync \
+          | grep -vP "($EXCLUDE)" \
+          | grep -P '\[[^]/]+\]\s+does not exist yet$'
         echo ""
 done
