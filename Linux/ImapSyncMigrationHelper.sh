@@ -428,6 +428,12 @@ for line in $VAR_CREDS; do
 DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
 
 LOG_FILE_NAME="$LOGFILE$MAIL_SOURCE""_$COUNT"
+
+if [[ -z "${FIXED_PATH:-}" ]]; then
+    LOG_FILE_NAME="\${LOG_FILE_NAME}%\${DATE_NOW}"
+fi
+
+LOG_FILE_NAME="$LOGFILE$MAIL_SOURCE""_$COUNT"
 if [[ -z "${FIXED_PATH:-}" ]]; then
     LOG_FILE_NAME="\${LOG_FILE_NAME}%\${DATE_NOW}"
 fi
@@ -577,6 +583,17 @@ acquire_lock() {
 }
 
 acquire_lock
+
+if [[ -n "${FIXED_PATH:-}" ]]; then
+    {
+        echo ""
+        echo "###################################################################"
+        echo "# START \$(date '+%Y-%m-%d %H:%M:%S')"
+        echo "# SOURCE: $MAIL_SOURCE$DOMAIN_SOURCE"
+        echo "# DEST: $MAIL_DEST$DOMAIN_DEST"
+        echo "###################################################################"
+    } >> "$LOGDIR/\$LOG_FILE_NAME"
+fi
 
 if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ]; then
     if [ ! -x "\$TIMEOUT" ]; then
