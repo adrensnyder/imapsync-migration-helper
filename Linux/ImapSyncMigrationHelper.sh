@@ -48,6 +48,32 @@ count_imapsync_processes() {
     '
 }
 
+is_pid_lock_active() {
+    local pid_file="$1"
+    local old_pid=""
+
+    if [[ -z "${pid_file:-}" ]]; then
+        return 1
+    fi
+
+    if [[ ! -f "$pid_file" ]]; then
+        return 1
+    fi
+
+    if [[ -L "$pid_file" ]]; then
+        echo "Unsafe PID lock: refusing symlink PID file: $pid_file"
+        return 0
+    fi
+
+    read -r old_pid _ < "$pid_file"
+
+    if [[ -n "${old_pid:-}" ]] && kill -0 "$old_pid" 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
 # PROGRAMS
 CAT=`which cat 2>/dev/null`
 AWK=`which awk 2>/dev/null`
@@ -80,7 +106,12 @@ DATENOW=$($DATE '+%Y-%m-%d_%H%M%S')
 PROJECTPATH="$JOBPATH/$JOBNAME"
 EXECS="Execs"
 
-FILE_RUN="$FILE_RUN$DATENOW"
+if [[ -n "${FIXED_PATH:-}" ]]; then
+    FILE_RUN="${FILE_RUN%_}"
+else
+    FILE_RUN="$FILE_RUN$DATENOW"
+fi
+
 FILE_CREDS="$JOBPATH/$JOBNAME/$FILE_CREDS"
 
 RUN_FOLDER="$DATENOW"
@@ -357,35 +388,30 @@ for line in $VAR_CREDS; do
     PADDED=$(printf "%0${DIGITS}d" "$COUNT")
     FILE_RUN_BASE="$PADDED""_""$FILE_RUN"
 
-        MAIL_SOURCE=`echo $line| $AWK '{ print $1 }'`
-        PASS_SOURCE=`echo $line| $AWK '{ print $2 }'`
+    MAIL_SOURCE=`echo $line| $AWK '{ print $1 }'`
+    PASS_SOURCE=`echo $line| $AWK '{ print $2 }'`
 
-        MAIL_DEST=`echo $line| $AWK '{ print $3 }'`
-        PASS_DEST=`echo $line| $AWK '{ print $4 }'`
+    MAIL_DEST=`echo $line| $AWK '{ print $3 }'`
+    PASS_DEST=`echo $line| $AWK '{ print $4 }'`
 
-        LOCK_NAME=`echo "$MAIL_SOURCE$DOMAIN_SOURCE--$MAIL_DEST$DOMAIN_DEST" | $SED 's/[^A-Za-z0-9_.@-]/_/g'`
-        LOCK_PID_FILE="$RUN_DIR/$LOCK_NAME.pid"
+    LOCK_NAME=`echo "$MAIL_SOURCE$DOMAIN_SOURCE--$MAIL_DEST$DOMAIN_DEST" | $SED 's/[^A-Za-z0-9_.@-]/_/g'`
+    LOCK_PID_FILE="$RUN_DIR/$LOCK_NAME.pid"
 
-        PARAM_CUSTOM=$(echo "$line" | grep -oP '"\K[^"]+')
+    PARAM_CUSTOM=$(echo "$line" | grep -oP '"\K[^"]+')
 
-        if [[ -z "${MAIL_SOURCE:-}" || -z "${PASS_SOURCE:-}" || -z "${MAIL_DEST:-}" || -z "${PASS_DEST:-}" ]]; then
-                echo "Some required data are missing:"
-                echo "MAIL SOURCE: $MAIL_SOURCE"
-                echo "PASS_SOURCE: $PASS_SOURCE"
-                echo "MAIL_DEST: $MAIL_DEST"
-                echo "PASS_DEST: $PASS_DEST"
-                exit 1
-        fi
+    if [[ -z "${MAIL_SOURCE:-}" || -z "${PASS_SOURCE:-}" || -z "${MAIL_DEST:-}" || -z "${PASS_DEST:-}" ]]; then
+            echo "Some required data are missing:"
+            echo "MAIL SOURCE: $MAIL_SOURCE"
+            echo "PASS_SOURCE: $PASS_SOURCE"
+            echo "MAIL_DEST: $MAIL_DEST"
+            echo "PASS_DEST: $PASS_DEST"
+            exit 1
+    fi
 
-        #PASS_SOURCE_OK="\"$PASS_SOURCE\""
-        #if [ "$PASS_COMP_ORIG" -eq "1" ]; then
-        #       PASS_SOURCE_OK="'"'"'$PASS_SOURCE'"'"'"
-        #fi
-
-        #PASS_DEST_OK="\"$PASS_DEST\""
-        #if [ "$PASS_COMP_DEST" -eq "1" ]; then
-        #       PASS_DEST_OK="'"'"'$PASS_DEST'"'"'"
-        #fi
+    if [[ -n "${FIXED_PATH:-}" && "$RUN_LOCK" -eq "1" ]] && is_pid_lock_active "$LOCK_PID_FILE"; then
+        echo "Migration already running for $MAIL_SOURCE$DOMAIN_SOURCE -> $MAIL_DEST$DOMAIN_DEST. Not regenerating fixed Exec files."
+        continue
+    fi
 
     # Creation of the pass files
     PASS_SOURCE_FILE="$PROJECTPATH/$EXEC_FOLDER/$FILE_RUN_BASE-PASS1-$MAIL_SOURCE.txt"
@@ -400,6 +426,11 @@ for line in $VAR_CREDS; do
 #!/bin/bash
 
 DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
+
+LOG_FILE_NAME="$LOGFILE$MAIL_SOURCE""_$COUNT"
+if [[ -z "${FIXED_PATH:-}" ]]; then
+    LOG_FILE_NAME="\${LOG_FILE_NAME}%\${DATE_NOW}"
+fi
 
 RUN_LOCK="$RUN_LOCK"
 PROCESS_TIMEOUT_MINUTES="$PROCESS_TIMEOUT_MINUTES"
