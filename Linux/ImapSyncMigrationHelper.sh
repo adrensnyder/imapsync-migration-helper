@@ -128,7 +128,7 @@ if [[ "X$JOBNAME" == "X" ]]; then
         ERRORS_VARS=1
 fi
 
-if [ ! -f $FILE_CREDENTIALS ]; then
+if [ ! -f "$FILE_CREDS" ]; then
         echo "File $FILE_CREDS missing"
         ERRORS_VARS=1
 fi
