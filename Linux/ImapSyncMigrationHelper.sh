@@ -154,11 +154,9 @@ if [ "$ERRORS_VARS" -eq "1" ]; then
 fi
 
 if [ "$LISTFOLDERS" -eq "1" ]; then
-    LOGDIR="$LOGDIR""_listfolders"
-else
-   if [ "$DRY" -eq "1" ]; then
-       LOGDIR="$LOGDIR""_dry"
-   fi
+    LOGDIR="${LOGDIR}_listfolders"
+elif [ "$DRY" -eq "1" ]; then
+    LOGDIR="${LOGDIR}_dry"
 fi
 
 if [ "$ADDHEADER" -eq "1" ]; then
