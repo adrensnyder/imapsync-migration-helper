@@ -595,15 +595,70 @@ if [[ -n "${FIXED_PATH:-}" ]]; then
     } >> "$LOGDIR/\$LOG_FILE_NAME"
 fi
 
-if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ]; then
-    if [ ! -x "\$TIMEOUT" ]; then
-        echo "timeout command not found or not executable: \$TIMEOUT"
-        exit 1
+if [[ -n "${FIXED_PATH:-}" ]]; then
+    if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ]; then
+        if [ ! -x "\$TIMEOUT" ]; then
+            echo "timeout command not found or not executable: \$TIMEOUT"
+            exit 1
+        fi
+
+        "\$TIMEOUT" --kill-after=60s "\${PROCESS_TIMEOUT_MINUTES}m" \
+            $IMAPSYNC $PARAM $PARAM_CUSTOM \
+            --host1 $IP_SOURCE \
+            --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" \
+            --passfile1 "$PASS_SOURCE_FILE" \
+            $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE \
+            --host2 $IP_DEST \
+            --user2 "$MAIL_DEST$DOMAIN_DEST" \
+            --passfile2 "$PASS_DEST_FILE" \
+            $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST \
+            --nolog >> "$LOGDIR/\$LOG_FILE_NAME" 2>&1
+    else
+        $IMAPSYNC $PARAM $PARAM_CUSTOM \
+            --host1 $IP_SOURCE \
+            --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" \
+            --passfile1 "$PASS_SOURCE_FILE" \
+            $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE \
+            --host2 $IP_DEST \
+            --user2 "$MAIL_DEST$DOMAIN_DEST" \
+            --passfile2 "$PASS_DEST_FILE" \
+            $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST \
+            --nolog >> "$LOGDIR/\$LOG_FILE_NAME" 2>&1
     fi
 
-    "\$TIMEOUT" --kill-after=60s "\${PROCESS_TIMEOUT_MINUTES}m" $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 "$PASS_SOURCE_FILE" $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 "$PASS_DEST_FILE" $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir "$LOGDIR" --logfile "\$LOG_FILE_NAME"
+    echo "# END \$(date '+%Y-%m-%d %H:%M:%S')" >> "$LOGDIR/\$LOG_FILE_NAME"
 else
-    $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 "$PASS_SOURCE_FILE" $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 "$PASS_DEST_FILE" $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir "$LOGDIR" --logfile "\$LOG_FILE_NAME"
+    if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ]; then
+        if [ ! -x "\$TIMEOUT" ]; then
+            echo "timeout command not found or not executable: \$TIMEOUT"
+            exit 1
+        fi
+
+        "\$TIMEOUT" --kill-after=60s "\${PROCESS_TIMEOUT_MINUTES}m" \
+            $IMAPSYNC $PARAM $PARAM_CUSTOM \
+            --host1 $IP_SOURCE \
+            --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" \
+            --passfile1 "$PASS_SOURCE_FILE" \
+            $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE \
+            --host2 $IP_DEST \
+            --user2 "$MAIL_DEST$DOMAIN_DEST" \
+            --passfile2 "$PASS_DEST_FILE" \
+            $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST \
+            --logdir "$LOGDIR" \
+            --logfile "\$LOG_FILE_NAME"
+    else
+        $IMAPSYNC $PARAM $PARAM_CUSTOM \
+            --host1 $IP_SOURCE \
+            --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" \
+            --passfile1 "$PASS_SOURCE_FILE" \
+            $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE \
+            --host2 $IP_DEST \
+            --user2 "$MAIL_DEST$DOMAIN_DEST" \
+            --passfile2 "$PASS_DEST_FILE" \
+            $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST \
+            --logdir "$LOGDIR" \
+            --logfile "\$LOG_FILE_NAME"
+    fi
 fi
 EOF
 
