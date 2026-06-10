@@ -37,6 +37,17 @@ append_param() {
     fi
 }
 
+count_imapsync_processes() {
+    ps -eo args= | awk -v imapsync="$IMAPSYNC" '
+        ($1 == imapsync) || ($1 ~ /(^|\/)perl([0-9.]*)?$/ && $2 == imapsync) {
+            count++
+        }
+        END {
+            print count + 0
+        }
+    '
+}
+
 # PROGRAMS
 CAT=`which cat 2>/dev/null`
 AWK=`which awk 2>/dev/null`
@@ -571,6 +582,17 @@ EOF
 
 NUM_PROCESS=$NUM_PROCESS
 
+count_imapsync_processes() {
+    ps -eo args= | awk -v imapsync="$IMAPSYNC" '
+        (\$1 == imapsync) || (\$1 ~ /(^|\/)perl([0-9.]*)?$/ && \$2 == imapsync) {
+            count++
+        }
+        END {
+            print count + 0
+        }
+    '
+}
+
 # Check for the latest log file, and if it exists, perform a safety search using 'ls' in case nothing is found
 LASTLOG=`ls -1 -r "$LOGDIR/$LOGFILE$MAIL_SOURCE"* 2>/dev/null |head -n1`
 if [ ! -f "\$LASTLOG" ]; then
@@ -598,12 +620,12 @@ if [[ "\$ATE" -gt 0 || "\$BYE" -gt 0 ]]; then
         echo -ne "Waiting for 1 minute before starting the new process $FILE_RUN_BASE-$MAIL_SOURCE.sh\r"
         sleep 60
 
-        PROCESS_LIST=\`ps auxw |grep $IMAPSYNC|grep -v grep|wc -l\`
+        PROCESS_LIST=$(count_imapsync_processes)
 
         while [ "\$PROCESS_LIST" -ge "\$NUM_PROCESS" ]; do
                 echo -ne "Waiting for 10 seconds. Found \$PROCESS_LIST processes $IMAPSYNC running\r"
                 sleep 10
-                PROCESS_LIST=\`ps auxw |grep $IMAPSYNC|grep -v grep|wc -l\`
+                PROCESS_LIST=$(count_imapsync_processes)
         done
 
         $PROJECTPATH/$EXEC_FOLDER/$FILE_RUN_BASE-$MAIL_SOURCE.sh &
@@ -624,17 +646,17 @@ COUNT=0
 
 for file in $LIST_RUN; do
         PROCESS_LIST_ATE=`ps auxw |grep '\-ATE\-'|grep -v grep|wc -l`
-        PROCESS_LIST=`ps auxw |grep $IMAPSYNC|grep -v grep|wc -l`
+        PROCESS_LIST=$(count_imapsync_processes)
         while [[ "$PROCESS_LIST" -ge "$NUM_PROCESS" || "$PROCESS_LIST_ATE" -gt "0" ]]; do
                 if [ "$LISTFOLDERS" -eq "0" ]; then
-                        echo -ne "Waiting for 1 minute. Found $PROCESS_LIST processes $IMAPSYNC running\r"
-                        sleep 60
+                    echo -ne "Waiting for 1 minute. Found $PROCESS_LIST processes $IMAPSYNC running\r"
+                    sleep 60
                 else
-                        echo -ne "Waiting for 5 seconds. Found $PROCESS_LIST processes $IMAPSYNC running\r"
-            sleep 5
+                    echo -ne "Waiting for 5 seconds. Found $PROCESS_LIST processes $IMAPSYNC running\r"
+                    sleep 5
                 fi
-                PROCESS_LIST_ATE=`ps auxw |grep '\-ATE\-'|grep -v grep|wc -l`
-            PROCESS_LIST=`ps auxw |grep $IMAPSYNC|grep -v grep|wc -l`
+            PROCESS_LIST_ATE=`ps auxw |grep '\-ATE\-'|grep -v grep|wc -l`
+            PROCESS_LIST=$(count_imapsync_processes)
         done
 
         DATE_TIME=$($DATE '+%Y-%m-%d %H:%M')
