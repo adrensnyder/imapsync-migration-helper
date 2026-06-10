@@ -493,6 +493,26 @@ cleanup_lock() {
     fi
 }
 
+remove_stale_lock() {
+    safe_lock_file
+
+    if [ ! -f "\$LOCK_PID_FILE" ]; then
+        return 0
+    fi
+
+    STALE_PID=""
+    STALE_START=""
+
+    read -r STALE_PID STALE_START < "\$LOCK_PID_FILE"
+
+    if [ "X\$STALE_PID" != "X" ] && kill -0 "\$STALE_PID" 2>/dev/null; then
+        echo "PID file is not stale. Process still exists: \$STALE_PID"
+        return 1
+    fi
+
+    rm -f -- "\$LOCK_PID_FILE"
+}
+
 create_lock_file() {
     safe_lock_file
 
@@ -536,8 +556,8 @@ acquire_lock() {
     fi
 
     echo "Removing stale PID file: \$LOCK_PID_FILE"
-    cleanup_lock
-
+    remove_stale_lock
+    
     if create_lock_file; then
         return 0
     fi
