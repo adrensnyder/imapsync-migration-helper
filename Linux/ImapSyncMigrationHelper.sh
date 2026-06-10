@@ -28,10 +28,12 @@
 
 # FUNCTIONS
 append_param() {
+    local value="$*"
+
     if [[ -n "${PARAM:-}" ]]; then
-        PARAM="$PARAM $*"
+        PARAM="$PARAM $value"
     else
-        PARAM="$*"
+        PARAM="$value"
     fi
 }
 
@@ -160,105 +162,67 @@ else
 fi
 
 if [ "$ADDHEADER" -eq "1" ]; then
-    if [[ "X$PARAM" == "X" ]]; then
-        PARAM="--addheader"
-    else
-        PARAM="$PARAM --addheader"
-    fi
+    append_param "--addheader"
 fi
 
 if [ "$DRY" -eq "1" ]; then
-    if [[ "X$PARAM" == "X" ]]; then
-                PARAM="--dry"
-    else
-        PARAM="$PARAM --dry"
-    fi
+    append_param "--dry"
 fi
 
 if [ "$LISTFOLDERS" -eq "1" ]; then
-    if [[ "X$PARAM" == "X" ]]; then
-        PARAM="--justfoldersizes"
-    else
-        PARAM="$PARAM --justfoldersizes"
-    fi
+    append_param "--justfoldersizes"
 fi
 
 if [ "$AUTOMAP" -eq "1" ]; then
-    if [[ "X$PARAM" == "X" ]]; then
-        PARAM="--automap"
-    else
-        PARAM="$PARAM --automap"
-    fi
+    append_param "--automap"
 fi
 
 if [ "$DISABLEREADCONFIRM" -eq "1" ]; then
-    if [[ "X$PARAM" == "X" ]]; then
-                PARAM="--disarmreadreceipts"
-    else
-        PARAM="$PARAM --disarmreadreceipts"
-    fi
+    append_param "--disarmreadreceipts"
 fi
 
 if [[ "$OFFICE365_SOURCE" -eq "1" || "$OFFICE365_DEST" -eq "1" ]]; then
-        if [[ "X$PARAM" == "X" ]]; then
-                PARAM="--maxmessagespersecond 4 --f1f2 \"Files=Files_renamed_by_imapsync\" --regexmess \"s,(.{10239}),\\\$1\r\n,g\""
-        else
-                PARAM="$PARAM --maxmessagespersecond 4 --f1f2 \"Files=Files_renamed_by_imapsync\" --regexmess \"s,(.{10239}),\\\$1\r\n,g\""
-        fi
+    append_param '--maxmessagespersecond 4 --f1f2 "Files=Files_renamed_by_imapsync" --regexmess "s,(.{10239}),\$1\r\n,g"'
 fi
 
 if [ "$OFFICE365_SOURCE" -eq "1" ]; then
-        if [[ "X$PARAM" == "X" ]]; then
-                #PARAM="--office1" # Rimosso in quanto alcuni valori come maxsize li configuriamo già a 150m e qui vengono limitati a 45m
-                PARAM="--ssl1"
-        else
-                #PARAM="$PARAM --office1" # Rimosso in quanto alcuni valori come maxsize li configuriamo già a 150m e qui vengono limitati a 45m
-                PARAM="$PARAM --ssl1"
-        fi
+    # --office1 removed because it limits some values, such as maxsize, to 45m.
+    # We already configure those values manually.
+    append_param "--ssl1"
 fi
 
 if [ "$OFFICE365_DEST" -eq "1" ]; then
-    if [[ "X$PARAM" == "X" ]]; then
-        #PARAM="--office2" # Rimosso in quanto alcuni valori come maxsize li configuriamo già a 150m e qui vengono limitati a 45m
-                PARAM="--ssl2"
-    else
-        #PARAM="$PARAM --office2" # Rimosso in quanto alcuni valori come maxsize li configuriamo già a 150m e qui vengono limitati a 45m
-                PARAM="$PARAM --ssl2"
-    fi
+    # --office2 removed because it limits some values, such as maxsize, to 45m.
+    # We already configure those values manually.
+    append_param "--ssl2"
 fi
 
-TOKEN_ORIG="$PROJECTPATH/$TOKEN_ORIG"
-TOKEN_DEST="$PROJECTPATH/$TOKEN_DEST"
 TOKEN=0
 
-if [[ "X$TOKEN_ORIG" != "X" ]]; then
+if [[ -n "${TOKEN_ORIG:-}" ]]; then
+    TOKEN_ORIG="$PROJECTPATH/$TOKEN_ORIG"
+
     if [ -f "$TOKEN_ORIG" ]; then
-        if [[ "X$PARAM" == "X" ]]; then
-                PARAM="--oauthaccesstoken1 $TOKEN_ORIG"
-        else
-            PARAM="$PARAM --oauthaccesstoken1 $TOKEN_ORIG"
-        fi
-                TOKEN=1
+        append_param "--oauthaccesstoken1 $TOKEN_ORIG"
+        TOKEN=1
     fi
 fi
 
-if [[ "X$TOKEN_DEST" != "X" ]]; then
+if [[ -n "${TOKEN_DEST:-}" ]]; then
+    TOKEN_DEST="$PROJECTPATH/$TOKEN_DEST"
+
     if [ -f "$TOKEN_DEST" ]; then
-        if [[ "X$PARAM" == "X" ]]; then
-                PARAM="--oauthaccesstoken2 $TOKEN_DEST"
-        else
-            PARAM="$PARAM --oauthaccesstoken2 $TOKEN_DEST"
-        fi
-                TOKEN=1
+        append_param "--oauthaccesstoken2 $TOKEN_DEST"
+        TOKEN=1
     fi
 fi
 
-if [[ "X$MAXSIZE" != "X" ]]; then
-        PARAM="$PARAM --maxsize $MAXSIZE"
+if [[ -n "${MAXSIZE:-}" ]]; then
+    append_param "--maxsize $MAXSIZE"
 fi
 
-if [[ "X$MAXLINE" != "X" ]]; then
-        PARAM="$PARAM --maxlinelength $MAXLINE"
+if [[ -n "${MAXLINE:-}" ]]; then
+    append_param "--maxlinelength $MAXLINE"
 fi
 
 if [ ! -d "$LOGDIR" ]; then
