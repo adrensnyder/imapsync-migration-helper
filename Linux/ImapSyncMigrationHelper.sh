@@ -100,6 +100,13 @@ fi
 # Parsing options
 ERRORS_VARS=0
 
+if [[ "X$LOG_FIXED_PATH" != "X" ]]; then
+    if [[ "$LOG_FIXED_PATH" = /* || "$LOG_FIXED_PATH" == *".."* || "$LOG_FIXED_PATH" == *"//"* || "$LOG_FIXED_PATH" =~ [^A-Za-z0-9._/-] ]]; then
+        echo "Invalid LOG_FIXED_PATH: use only a relative path under $LOGDIR_BASE, without '..', '//' or special characters"
+        ERRORS_VARS=1
+    fi
+fi
+
 if [[ "X$RUN_LOCK" == "X" ]]; then
     RUN_LOCK=0
 fi
@@ -400,7 +407,7 @@ for line in $VAR_CREDS; do
     WORKFILE="$EXEC_FOLDER/$FILE_RUN_BASE-WORK-$MAIL_SOURCE.sh"
 
     $CAT > "$WORKFILE" <<EOF
-#!/bin/sh
+#!/bin/bash
 
 DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
 
@@ -521,12 +528,12 @@ EOF
                 fi
 
         $CAT << EOF > "$EXEC_FOLDER/$FILE_RUN_BASE-ATE-$MAIL_SOURCE.sh"
-#!/bin/sh
+#!/bin/bash
 
 NUM_PROCESS=$NUM_PROCESS
 
 # Check for the latest log file, and if it exists, perform a safety search using 'ls' in case nothing is found
-LASTLOG=\`ls -1 -r "$LOGDIR$LOGFILE/$MAIL_SOURCE"* |head -n1\`
+LASTLOG=`ls -1 -r "$LOGDIR/$LOGFILE$MAIL_SOURCE"* 2>/dev/null |head -n1`
 if [ ! -f "\$LASTLOG" ]; then
         exit
 fi
