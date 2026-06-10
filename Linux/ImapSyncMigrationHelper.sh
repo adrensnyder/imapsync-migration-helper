@@ -61,17 +61,14 @@ EXECS="Execs"
 FILE_RUN="$FILE_RUN$DATENOW"
 FILE_CREDS="$JOBPATH/$JOBNAME/$FILE_CREDS"
 
-LOGDIR_BASE="$LOGDIR/$JOBNAME"
+RUN_FOLDER="$DATENOW"
 
-# Comportamento standard:
-# /var/log/imapsync/{JOBNAME}/{DATENOW}
-LOGDIR="$LOGDIR_BASE/$DATENOW"
-
-# Comportamento opzionale per backup continuo:
-# /var/log/imapsync/{JOBNAME}/{LOG_FIXED_PATH}
-if [[ "X$LOG_FIXED_PATH" != "X" ]]; then
-    LOGDIR="$LOGDIR_BASE/$LOG_FIXED_PATH"
+if [[ "X$FIXED_PATH" != "X" ]]; then
+    RUN_FOLDER="$FIXED_PATH"
 fi
+
+LOGDIR_BASE="$LOGDIR/$JOBNAME"
+LOGDIR="$LOGDIR_BASE/$RUN_FOLDER"
 
 # Initial checks
 if [ ! -d "$PROJECTPATH" ]; then
@@ -101,9 +98,9 @@ fi
 # Parsing options
 ERRORS_VARS=0
 
-if [[ "X$LOG_FIXED_PATH" != "X" ]]; then
-    if [[ "$LOG_FIXED_PATH" = /* || "$LOG_FIXED_PATH" == *".."* || "$LOG_FIXED_PATH" == *"//"* || "$LOG_FIXED_PATH" =~ [^A-Za-z0-9._/-] ]]; then
-        echo "Invalid LOG_FIXED_PATH: use only a relative path under $LOGDIR_BASE, without '..', '//' or special characters"
+if [[ "X$FIXED_PATH" != "X" ]]; then
+    if [[ "$FIXED_PATH" = /* || "$FIXED_PATH" == *".."* || "$FIXED_PATH" == *"//"* || "$FIXED_PATH" =~ [^A-Za-z0-9._/-] ]]; then
+        echo "Invalid FIXED_PATH: use only a relative path, without '..', '//' or special characters"
         ERRORS_VARS=1
     fi
 fi
@@ -350,7 +347,11 @@ fi
 
 RUN_DIR="$RUN_DIR_REAL"
 
-EXEC_FOLDER="$EXECS/Exec_$DATENOW"
+if [[ "X$FIXED_PATH" != "X" ]]; then
+    EXEC_FOLDER="$EXECS/$FIXED_PATH"
+else
+    EXEC_FOLDER="$EXECS/Exec_$DATENOW"
+fi
 
 if [ ! -d "$EXEC_FOLDER" ]; then
     mkdir -p "$EXEC_FOLDER"
@@ -650,8 +651,8 @@ EOF
 
 done
 
-LIST_RUN=`ls -1 "$EXEC_FOLDER/"*  |grep '\-WORK\-'`
-LIST_RUN_COUNT=`ls -1 "$EXEC_FOLDER/"*  |grep '\-WORK\-' |wc -l`
+LIST_RUN=`find "$EXEC_FOLDER" -maxdepth 1 -type f -name "*${FILE_RUN}-WORK-*.sh" | sort`
+LIST_RUN_COUNT=`printf '%s\n' "$LIST_RUN" | grep -c .`
 COUNT=0
 
 for file in $LIST_RUN; do
