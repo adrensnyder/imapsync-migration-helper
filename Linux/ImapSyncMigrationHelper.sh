@@ -26,6 +26,15 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 ###################################################################
 
+# FUNCTIONS
+append_param() {
+    if [[ -n "${PARAM:-}" ]]; then
+        PARAM="$PARAM $*"
+    else
+        PARAM="$*"
+    fi
+}
+
 # PROGRAMS
 CAT=`which cat 2>/dev/null`
 AWK=`which awk 2>/dev/null`
@@ -63,7 +72,7 @@ FILE_CREDS="$JOBPATH/$JOBNAME/$FILE_CREDS"
 
 RUN_FOLDER="$DATENOW"
 
-if [[ "X$FIXED_PATH" != "X" ]]; then
+if [[ -n "${FIXED_PATH:-}" ]]; then
     RUN_FOLDER="$FIXED_PATH"
 fi
 
@@ -89,7 +98,7 @@ for files_needed in $FILES_NEEDED; do
     fi
 done
 
-if [ "X$FILES_MISSING" != "X" ]; then
+if [[ -n "$FILES_MISSING" ]]; then
         echo "Missing files in path $PROJECTPATH:$FILES_MISSING"
         echo "Please copy all the GIT files in the folder $PROJECTPATH"
         exit
@@ -98,20 +107,15 @@ fi
 # Parsing options
 ERRORS_VARS=0
 
-if [[ "X$FIXED_PATH" != "X" ]]; then
+if [[ -n "${FIXED_PATH:-}" ]]; then
     if [[ "$FIXED_PATH" = /* || "$FIXED_PATH" == *".."* || "$FIXED_PATH" == *"//"* || "$FIXED_PATH" =~ [^A-Za-z0-9._/-] ]]; then
         echo "Invalid FIXED_PATH: use only a relative path, without '..', '//' or special characters"
         ERRORS_VARS=1
     fi
 fi
 
-if [[ "X$RUN_LOCK" == "X" ]]; then
-    RUN_LOCK=0
-fi
-
-if [[ "X$PROCESS_TIMEOUT_MINUTES" == "X" ]]; then
-    PROCESS_TIMEOUT_MINUTES=0
-fi
+RUN_LOCK="${RUN_LOCK:-0}"
+PROCESS_TIMEOUT_MINUTES="${PROCESS_TIMEOUT_MINUTES:-0}"
 
 if ! [[ "$RUN_LOCK" =~ ^[01]$ ]]; then
     echo "RUN_LOCK must be 0 or 1"
@@ -123,12 +127,12 @@ if ! [[ "$PROCESS_TIMEOUT_MINUTES" =~ ^[0-9]+$ ]]; then
     ERRORS_VARS=1
 fi
 
-if [[ "$PROCESS_TIMEOUT_MINUTES" -gt 0 && "X$TIMEOUT" == "X" ]]; then
+if [[ "$PROCESS_TIMEOUT_MINUTES" -gt 0 && -z "${TIMEOUT:-}" ]]; then
     echo "PROCESS_TIMEOUT_MINUTES requires the timeout command, but timeout was not found"
     ERRORS_VARS=1
 fi
 
-if [[ "X$JOBNAME" == "X" ]]; then
+if [[ -z "${JOBNAME:-}" ]]; then
         echo "Change variable name JOBNAME"
         ERRORS_VARS=1
 fi
@@ -138,7 +142,7 @@ if [ ! -f "$FILE_CREDS" ]; then
         ERRORS_VARS=1
 fi
 
-if [[ "X$IP_SOURCE" == X || "X$IP_DEST" == X ]]; then
+if [[ -z "${IP_SOURCE:-}" || -z "${IP_DEST:-}" ]]; then
         echo "Missing IP_SOURCE or IP_DEST variable"
         ERRORS_VARS=1
 fi
@@ -309,21 +313,22 @@ else
         TLS_TAG_DEST="--notls2"
 fi
 
-if [[ "X$PORT_SOURCE" != "X" ]]; then
+if [[ -n "${PORT_SOURCE:-}" ]]; then
         PORT_TAG_SOURCE="--port1 $PORT_SOURCE"
 fi
 
-if [[ "X$PORT_DEST" != "X" ]]; then
+if [[ -n "${PORT_DEST:-}" ]]; then
         PORT_TAG_DEST="--port2 $PORT_DEST"
 fi
 
 VAR_CREDS=`$CAT "$FILE_CREDS"`
 
 # Add @
-if [[ "X$DOMAIN_SOURCE" != "X" ]]; then
+if [[ -n "${DOMAIN_SOURCE:-}" ]]; then
         DOMAIN_SOURCE="@$DOMAIN_SOURCE"
 fi
-if [[ "X$DOMAIN_DEST" != "X" ]]; then
+
+if [[ -n "${DOMAIN_DEST:-}" ]]; then
         DOMAIN_DEST="@$DOMAIN_DEST"
 fi
 
@@ -340,14 +345,14 @@ fi
 PROJECTPATH_REAL="$(cd "$PROJECTPATH" && pwd -P)"
 RUN_DIR_REAL="$(cd "$RUN_DIR" && pwd -P)"
 
-if [[ "X$PROJECTPATH_REAL" == "X" || "X$RUN_DIR_REAL" == "X" || "$RUN_DIR_REAL" != "$PROJECTPATH_REAL/Run" ]]; then
+if [[ -z "${PROJECTPATH_REAL:-}" || -z "${RUN_DIR_REAL:-}" || "$RUN_DIR_REAL" != "$PROJECTPATH_REAL/Run" ]]; then
     echo "Unsafe RUN_DIR: $RUN_DIR_REAL"
     exit 1
 fi
 
 RUN_DIR="$RUN_DIR_REAL"
 
-if [[ "X$FIXED_PATH" != "X" ]]; then
+if [[ -n "${FIXED_PATH:-}" ]]; then
     EXEC_FOLDER="$EXECS/$FIXED_PATH"
 else
     EXEC_FOLDER="$EXECS/Exec_$DATENOW"
@@ -357,8 +362,8 @@ if [ ! -d "$EXEC_FOLDER" ]; then
     mkdir -p "$EXEC_FOLDER"
 fi
 
-if [[ "X$TOKEN_JOB" == "X" ]]; then
-        TOKEN_JOB=$JOBNAME
+if [[ -z "${TOKEN_JOB:-}" ]]; then
+        TOKEN_JOB="$JOBNAME"
 fi
 
 # Start JOB
@@ -390,7 +395,7 @@ for line in $VAR_CREDS; do
 
         PARAM_CUSTOM=$(echo "$line" | grep -oP '"\K[^"]+')
 
-        if [[ "X$MAIL_SOURCE" == "X" || "X$PASS_SOURCE" == "X" || "X$MAIL_DEST" == "X" || "X$PASS_DEST" == "X" ]]; then
+        if [[ -z "${MAIL_SOURCE:-}" || -z "${PASS_SOURCE:-}" || -z "${MAIL_DEST:-}" || -z "${PASS_DEST:-}" ]]; then
                 echo "Some required data are missing:"
                 echo "MAIL SOURCE: $MAIL_SOURCE"
                 echo "PASS_SOURCE: $PASS_SOURCE"
@@ -430,16 +435,16 @@ RUN_DIR="$RUN_DIR"
 LOCK_PID_FILE="$LOCK_PID_FILE"
 
 safe_lock_file() {
-    if [ "\$RUN_LOCK" -ne "1" ]; then
+    if [[ "\$RUN_LOCK" -ne "1" ]]; then
         return 0
     fi
 
-    if [ "X\$RUN_DIR" = "X" ]; then
+    if [[ -z "\${RUN_DIR:-}" ]]; then
         echo "Unsafe lock configuration: RUN_DIR is empty"
         exit 1
     fi
 
-    if [ "X\$LOCK_PID_FILE" = "X" ]; then
+    if [[ -z "\${LOCK_PID_FILE:-}" ]]; then
         echo "Unsafe lock configuration: LOCK_PID_FILE is empty"
         exit 1
     fi
@@ -487,7 +492,7 @@ cleanup_lock() {
 
     read -r LOCK_OWNER_PID LOCK_OWNER_START < "\$LOCK_PID_FILE"
 
-    if [ "X\$LOCK_OWNER_PID" = "X\$\$" ]; then
+    if [[ "\$LOCK_OWNER_PID" = "\$\$" ]]; then
         rm -f -- "\$LOCK_PID_FILE"
     else
         echo "PID lock not owned by this process. Not removing: \$LOCK_PID_FILE"
@@ -506,7 +511,7 @@ remove_stale_lock() {
 
     read -r STALE_PID STALE_START < "\$LOCK_PID_FILE"
 
-    if [ "X\$STALE_PID" != "X" ] && kill -0 "\$STALE_PID" 2>/dev/null; then
+    if [[ -n "\${STALE_PID:-}" ]] && kill -0 "\$STALE_PID" 2>/dev/null; then
         echo "PID file is not stale. Process still exists: \$STALE_PID"
         return 1
     fi
@@ -543,10 +548,10 @@ acquire_lock() {
         read -r OLD_PID OLD_START < "\$LOCK_PID_FILE"
     fi
 
-    if [ "X\$OLD_PID" != "X" ] && kill -0 "\$OLD_PID" 2>/dev/null; then
+    if [[ -n "\${OLD_PID:-}" ]] && kill -0 "\$OLD_PID" 2>/dev/null; then
         NOW=\$(date +%s)
 
-        if [ "X\$OLD_START" = "X" ]; then
+        if [[ -z "\${OLD_START:-}" ]]; then
             OLD_START=\$NOW
         fi
 
@@ -615,7 +620,7 @@ ATE=\`grep -a AccessTokenExpired "\$LASTLOG" |wc -l\`
 BYE=\`grep -a "BYE Connection closed" "\$LASTLOG" |wc -l\`
 
 SYNC_LINE=\`grep -a "Folders synced" "\$LASTLOG" |awk '{ print \$4}'\`
-if [ "X\$SYNC_LINE" == "X" ]; then
+if [[ -z "\${SYNC_LINE:-}" ]]; then
         exit
 fi
 
