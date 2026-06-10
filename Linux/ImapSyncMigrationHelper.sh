@@ -471,9 +471,25 @@ safe_lock_file() {
 }
 
 cleanup_lock() {
-    if [ "\$RUN_LOCK" -eq "1" ]; then
-        safe_lock_file
+    if [ "\$RUN_LOCK" -ne "1" ]; then
+        return 0
+    fi
+
+    safe_lock_file
+
+    if [ ! -f "\$LOCK_PID_FILE" ]; then
+        return 0
+    fi
+
+    LOCK_OWNER_PID=""
+    LOCK_OWNER_START=""
+
+    read -r LOCK_OWNER_PID LOCK_OWNER_START < "\$LOCK_PID_FILE"
+
+    if [ "X\$LOCK_OWNER_PID" = "X\$\$" ]; then
         rm -f -- "\$LOCK_PID_FILE"
+    else
+        echo "PID lock not owned by this process. Not removing: \$LOCK_PID_FILE"
     fi
 }
 
