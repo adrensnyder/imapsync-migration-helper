@@ -50,7 +50,7 @@ fi
 
 
 # Load configuration
-source $BASE_DIR/main.conf
+source "$BASE_DIR/main.conf"
 
 DATE=`which date 2>/dev/null`
 DATENOW=$($DATE '+%Y-%m-%d_%H%M%S')
@@ -76,12 +76,12 @@ fi
 # Initial checks
 if [ ! -d "$PROJECTPATH" ]; then
     echo "All GIT files have to be copied in $PROJECTPATH folder. The folder has been created now"
-    $MKDIR -p $PROJECTPATH
+    $MKDIR -p "$PROJECTPATH"
     exit
 fi
 
 # Enter in project path
-cd $PROJECTPATH
+cd "$PROJECTPATH" | exit 1
 
 # Check files
 FILES_NEEDED="atstart.sh check_migration.sh create_next_schedule.sh main.conf mutt_oauth2.py mail_list"
@@ -260,8 +260,8 @@ if [[ "X$MAXLINE" != "X" ]]; then
         PARAM="$PARAM --maxlinelength $MAXLINE"
 fi
 
-if [ ! -d $LOGDIR ]; then
-        $MKDIR -p $LOGDIR > /dev/null
+if [ ! -d "$LOGDIR" ]; then
+        $MKDIR -p "$LOGDIR" > /dev/null
 fi
 
 PORT_TAG_SOURCE=""
@@ -320,7 +320,7 @@ if [[ "X$PORT_DEST" != "X" ]]; then
         PORT_TAG_DEST="--port2 $PORT_DEST"
 fi
 
-VAR_CREDS=`$CAT $FILE_CREDS`
+VAR_CREDS=`$CAT "$FILE_CREDS"`
 
 # Add @
 if [[ "X$DOMAIN_SOURCE" != "X" ]]; then
@@ -400,9 +400,9 @@ for line in $VAR_CREDS; do
 
     # Creation of the pass files
     PASS_SOURCE_FILE="$PROJECTPATH/$EXEC_FOLDER/$FILE_RUN_BASE-PASS1-$MAIL_SOURCE.txt"
-    echo $PASS_SOURCE > $PASS_SOURCE_FILE
+    echo "$PASS_SOURCE" > "$PASS_SOURCE_FILE"
     PASS_DEST_FILE="$PROJECTPATH/$EXEC_FOLDER/$FILE_RUN_BASE-PASS2-$MAIL_SOURCE.txt"
-    echo $PASS_DEST > $PASS_DEST_FILE
+    echo "$PASS_DEST" > "$PASS_DEST_FILE"
 
     # Creation of a file with the imapsync startup string
     WORKFILE="$EXEC_FOLDER/$FILE_RUN_BASE-WORK-$MAIL_SOURCE.sh"
@@ -414,6 +414,7 @@ DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
 
 RUN_LOCK="$RUN_LOCK"
 PROCESS_TIMEOUT_MINUTES="$PROCESS_TIMEOUT_MINUTES"
+TIMEOUT="$TIMEOUT"
 LOCK_DIR="$LOCK_DIR"
 LOCK_PID_FILE="\$LOCK_DIR/pid"
 LOCK_START_FILE="\$LOCK_DIR/start"
@@ -436,55 +437,22 @@ acquire_lock() {
         return 0
     fi
 
-    if [ ! -f "\$LOCK_PID_FILE" ]; then
-        echo "Lock found without PID file. Removing stale lock: \$LOCK_DIR"
-        rm -rf "\$LOCK_DIR"
+    if [ -f "\$LOCK_PID_FILE" ]; then
+        OLD_PID=\$(cat "\$LOCK_PID_FILE" 2>/dev/null)
 
-        if mkdir "\$LOCK_DIR" 2>/dev/null; then
-            echo \$\$ > "\$LOCK_PID_FILE"
-            date +%s > "\$LOCK_START_FILE"
-            trap cleanup_lock EXIT INT TERM
-            return 0
-        fi
+        if [ "X\$OLD_PID" != "X" ] && kill -0 "\$OLD_PID" 2>/dev/null; then
+            NOW=\$(date +%s)
+            OLD_START=\$(cat "\$LOCK_START_FILE" 2>/dev/null)
 
-        echo "Unable to acquire lock: \$LOCK_DIR"
-        exit 0
-    fi
-
-    OLD_PID=\$(cat "\$LOCK_PID_FILE" 2>/dev/null)
-
-    if [ "X\$OLD_PID" != "X" ] && kill -0 "\$OLD_PID" 2>/dev/null; then
-        NOW=\$(date +%s)
-        OLD_START=\$(cat "\$LOCK_START_FILE" 2>/dev/null)
-
-        if [ "X\$OLD_START" = "X" ]; then
-            OLD_START=\$NOW
-        fi
-
-        AGE_MINUTES=\$(( (\$NOW - \$OLD_START) / 60 ))
-
-        if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ] && [ "\$AGE_MINUTES" -ge "\$PROCESS_TIMEOUT_MINUTES" ]; then
-            echo "Process \$OLD_PID exceeded timeout of \$PROCESS_TIMEOUT_MINUTES minutes. Killing it."
-
-            kill "\$OLD_PID" 2>/dev/null
-            sleep 10
-            kill -9 "\$OLD_PID" 2>/dev/null
-
-            rm -rf "\$LOCK_DIR"
-
-            if mkdir "\$LOCK_DIR" 2>/dev/null; then
-                echo \$\$ > "\$LOCK_PID_FILE"
-                date +%s > "\$LOCK_START_FILE"
-                trap cleanup_lock EXIT INT TERM
-                return 0
+            if [ "X\$OLD_START" = "X" ]; then
+                OLD_START=\$NOW
             fi
 
-            echo "Unable to acquire lock after killing old process: \$LOCK_DIR"
+            AGE_MINUTES=\$(( (\$NOW - \$OLD_START) / 60 ))
+
+            echo "Migration already running for $MAIL_SOURCE$DOMAIN_SOURCE -> $MAIL_DEST$DOMAIN_DEST. PID: \$OLD_PID. Runtime: \$AGE_MINUTES minutes. Skipping."
             exit 0
         fi
-
-        echo "Migration already running for $MAIL_SOURCE$DOMAIN_SOURCE -> $MAIL_DEST$DOMAIN_DEST. PID: \$OLD_PID. Runtime: \$AGE_MINUTES minutes. Skipping."
-        exit 0
     fi
 
     echo "Removing stale lock: \$LOCK_DIR"
@@ -504,9 +472,9 @@ acquire_lock() {
 acquire_lock
 
 if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ]; then
-    timeout "\${PROCESS_TIMEOUT_MINUTES}m" $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 $PASS_SOURCE_FILE $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 $PASS_DEST_FILE $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir $LOGDIR --logfile "$LOGFILE$MAIL_SOURCE""_$COUNT%\${DATE_NOW}"
+    "\$TIMEOUT" --kill-after=60s "\${PROCESS_TIMEOUT_MINUTES}m" $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 "$PASS_SOURCE_FILE" $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 "$PASS_DEST_FILE" $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir "$LOGDIR" --logfile "$LOGFILE$MAIL_SOURCE""_$COUNT%\${DATE_NOW}"
 else
-    $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 $PASS_SOURCE_FILE $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 $PASS_DEST_FILE $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir $LOGDIR --logfile "$LOGFILE$MAIL_SOURCE""_$COUNT%\${DATE_NOW}"
+    $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 "$PASS_SOURCE_FILE" $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 "$PASS_DEST_FILE" $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir "$LOGDIR" --logfile "$LOGFILE$MAIL_SOURCE""_$COUNT%\${DATE_NOW}"
 fi
 EOF
 
