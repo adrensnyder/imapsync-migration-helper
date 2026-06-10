@@ -81,7 +81,7 @@ if [ ! -d "$PROJECTPATH" ]; then
 fi
 
 # Enter in project path
-cd "$PROJECTPATH" | exit 1
+cd "$PROJECTPATH" || exit 1
 
 # Check files
 FILES_NEEDED="atstart.sh check_migration.sh create_next_schedule.sh main.conf mutt_oauth2.py mail_list"
@@ -340,6 +340,16 @@ if [ ! -d "$RUN_DIR" ]; then
     mkdir -p "$RUN_DIR"
 fi
 
+PROJECTPATH_REAL="$(cd "$PROJECTPATH" && pwd -P)"
+RUN_DIR_REAL="$(cd "$RUN_DIR" && pwd -P)"
+
+if [[ "X$PROJECTPATH_REAL" == "X" || "X$RUN_DIR_REAL" == "X" || "$RUN_DIR_REAL" != "$PROJECTPATH_REAL/Run" ]]; then
+    echo "Unsafe RUN_DIR: $RUN_DIR_REAL"
+    exit 1
+fi
+
+RUN_DIR="$RUN_DIR_REAL"
+
 EXEC_FOLDER="$EXECS/Exec_$DATENOW"
 
 if [ ! -d "$EXEC_FOLDER" ]; then
@@ -375,7 +385,7 @@ for line in $VAR_CREDS; do
         PASS_DEST=`echo $line| $AWK '{ print $4 }'`
 
         LOCK_NAME=`echo "$MAIL_SOURCE$DOMAIN_SOURCE--$MAIL_DEST$DOMAIN_DEST" | $SED 's/[^A-Za-z0-9_.@-]/_/g'`
-        LOCK_DIR="$RUN_DIR/$LOCK_NAME.lock"
+        LOCK_PID_FILE="$RUN_DIR/$LOCK_NAME.pid"
 
         PARAM_CUSTOM=$(echo "$line" | grep -oP '"\K[^"]+')
 
@@ -415,14 +425,67 @@ DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
 RUN_LOCK="$RUN_LOCK"
 PROCESS_TIMEOUT_MINUTES="$PROCESS_TIMEOUT_MINUTES"
 TIMEOUT="$TIMEOUT"
-LOCK_DIR="$LOCK_DIR"
-LOCK_PID_FILE="\$LOCK_DIR/pid"
-LOCK_START_FILE="\$LOCK_DIR/start"
+RUN_DIR="$RUN_DIR"
+LOCK_PID_FILE="$LOCK_PID_FILE"
+
+safe_lock_file() {
+    if [ "\$RUN_LOCK" -ne "1" ]; then
+        return 0
+    fi
+
+    if [ "X\$RUN_DIR" = "X" ]; then
+        echo "Unsafe lock configuration: RUN_DIR is empty"
+        exit 1
+    fi
+
+    if [ "X\$LOCK_PID_FILE" = "X" ]; then
+        echo "Unsafe lock configuration: LOCK_PID_FILE is empty"
+        exit 1
+    fi
+
+    if [ ! -d "\$RUN_DIR" ]; then
+        echo "Unsafe lock configuration: RUN_DIR does not exist: \$RUN_DIR"
+        exit 1
+    fi
+
+    case "\$RUN_DIR" in
+        /*) ;;
+        *)
+            echo "Unsafe lock configuration: RUN_DIR is not absolute: \$RUN_DIR"
+            exit 1
+            ;;
+    esac
+
+    case "\$LOCK_PID_FILE" in
+        "\$RUN_DIR"/*.pid) ;;
+        *)
+            echo "Unsafe lock configuration: LOCK_PID_FILE is outside RUN_DIR: \$LOCK_PID_FILE"
+            exit 1
+            ;;
+    esac
+
+    if [ -L "\$LOCK_PID_FILE" ]; then
+        echo "Unsafe lock configuration: refusing to use symlink PID file: \$LOCK_PID_FILE"
+        exit 1
+    fi
+}
 
 cleanup_lock() {
     if [ "\$RUN_LOCK" -eq "1" ]; then
-        rm -rf "\$LOCK_DIR"
+        safe_lock_file
+        rm -f -- "\$LOCK_PID_FILE"
     fi
+}
+
+create_lock_file() {
+    safe_lock_file
+
+    if ( set -o noclobber; printf '%s %s\n' "\$\$" "\$(date +%s)" > "\$LOCK_PID_FILE" ) 2>/dev/null; then
+        trap cleanup_lock EXIT INT TERM
+        return 0
+    fi
+
+    return 1
 }
 
 acquire_lock() {
@@ -430,48 +493,51 @@ acquire_lock() {
         return 0
     fi
 
-    if mkdir "\$LOCK_DIR" 2>/dev/null; then
-        echo \$\$ > "\$LOCK_PID_FILE"
-        date +%s > "\$LOCK_START_FILE"
-        trap cleanup_lock EXIT INT TERM
+    if create_lock_file; then
         return 0
     fi
+
+    safe_lock_file
+
+    OLD_PID=""
+    OLD_START=""
 
     if [ -f "\$LOCK_PID_FILE" ]; then
-        OLD_PID=\$(cat "\$LOCK_PID_FILE" 2>/dev/null)
-
-        if [ "X\$OLD_PID" != "X" ] && kill -0 "\$OLD_PID" 2>/dev/null; then
-            NOW=\$(date +%s)
-            OLD_START=\$(cat "\$LOCK_START_FILE" 2>/dev/null)
-
-            if [ "X\$OLD_START" = "X" ]; then
-                OLD_START=\$NOW
-            fi
-
-            AGE_MINUTES=\$(( (\$NOW - \$OLD_START) / 60 ))
-
-            echo "Migration already running for $MAIL_SOURCE$DOMAIN_SOURCE -> $MAIL_DEST$DOMAIN_DEST. PID: \$OLD_PID. Runtime: \$AGE_MINUTES minutes. Skipping."
-            exit 0
-        fi
+        read -r OLD_PID OLD_START < "\$LOCK_PID_FILE"
     fi
 
-    echo "Removing stale lock: \$LOCK_DIR"
-    rm -rf "\$LOCK_DIR"
+    if [ "X\$OLD_PID" != "X" ] && kill -0 "\$OLD_PID" 2>/dev/null; then
+        NOW=\$(date +%s)
 
-    if mkdir "\$LOCK_DIR" 2>/dev/null; then
-        echo \$\$ > "\$LOCK_PID_FILE"
-        date +%s > "\$LOCK_START_FILE"
-        trap cleanup_lock EXIT INT TERM
+        if [ "X\$OLD_START" = "X" ]; then
+            OLD_START=\$NOW
+        fi
+
+        AGE_MINUTES=\$(( (\$NOW - \$OLD_START) / 60 ))
+
+        echo "Migration already running for $MAIL_SOURCE$DOMAIN_SOURCE -> $MAIL_DEST$DOMAIN_DEST. PID: \$OLD_PID. Runtime: \$AGE_MINUTES minutes. Skipping."
+        exit 0
+    fi
+
+    echo "Removing stale PID file: \$LOCK_PID_FILE"
+    cleanup_lock
+
+    if create_lock_file; then
         return 0
     fi
 
-    echo "Unable to acquire lock: \$LOCK_DIR"
+    echo "Unable to acquire PID lock: \$LOCK_PID_FILE"
     exit 0
 }
 
 acquire_lock
 
 if [ "\$PROCESS_TIMEOUT_MINUTES" -gt "0" ]; then
+    if [ ! -x "\$TIMEOUT" ]; then
+        echo "timeout command not found or not executable: \$TIMEOUT"
+        exit 1
+    fi
+
     "\$TIMEOUT" --kill-after=60s "\${PROCESS_TIMEOUT_MINUTES}m" $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 "$PASS_SOURCE_FILE" $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 "$PASS_DEST_FILE" $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir "$LOGDIR" --logfile "$LOGFILE$MAIL_SOURCE""_$COUNT%\${DATE_NOW}"
 else
     $IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 "$MAIL_SOURCE$DOMAIN_SOURCE" --passfile1 "$PASS_SOURCE_FILE" $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 "$MAIL_DEST$DOMAIN_DEST" --passfile2 "$PASS_DEST_FILE" $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir "$LOGDIR" --logfile "$LOGFILE$MAIL_SOURCE""_$COUNT%\${DATE_NOW}"
