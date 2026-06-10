@@ -59,7 +59,17 @@ EXECS="Execs"
 FILE_RUN="$FILE_RUN$DATENOW"
 FILE_CREDS="$JOBPATH/$JOBNAME/$FILE_CREDS"
 
-LOGDIR="$LOGDIR/$JOBNAME/$DATENOW"
+LOGDIR_BASE="$LOGDIR/$JOBNAME"
+
+# Comportamento standard:
+# /var/log/imapsync/{JOBNAME}/{DATENOW}
+LOGDIR="$LOGDIR_BASE/$DATENOW"
+
+# Comportamento opzionale per backup continuo:
+# /var/log/imapsync/{JOBNAME}/{LOG_FIXED_PATH}
+if [[ "X$LOG_FIXED_PATH" != "X" ]]; then
+    LOGDIR="$LOGDIR_BASE/$LOG_FIXED_PATH"
+fi
 
 # Initial checks
 if [ ! -d "$PROJECTPATH" ]; then
@@ -356,7 +366,7 @@ for line in $VAR_CREDS; do
     WORKFILE="$EXEC_FOLDER/$FILE_RUN_BASE-WORK-$MAIL_SOURCE.sh"
     echo "#!/bin/sh" > "$WORKFILE"
     echo "" >> "$WORKFILE"
-	echo 'DATE_NOW=$(date +"%Y-%m-%d_%H-%M")' >> "$WORKFILE"
+	echo 'DATE_NOW=$(date +"%Y-%m-%d_%H-%M-%S")' >> "$WORKFILE"
     echo "$IMAPSYNC $PARAM $PARAM_CUSTOM --host1 $IP_SOURCE --user1 \"$MAIL_SOURCE$DOMAIN_SOURCE\" --passfile1 $PASS_SOURCE_FILE $SSL_TAG_SOURCE $TLS_TAG_SOURCE $PORT_TAG_SOURCE --host2 $IP_DEST --user2 \"$MAIL_DEST$DOMAIN_DEST\" --passfile2 $PASS_DEST_FILE $SSL_TAG_DEST $TLS_TAG_DEST $PORT_TAG_DEST --logdir $LOGDIR --logfile \"$LOGFILE$MAIL_SOURCE""_$COUNT"'%$DATE_NOW'\" >> "$WORKFILE"
 
     # Granting execution rights for the file
