@@ -1,3 +1,4 @@
+#!/bin/bash
 ###################################################################
 # Copyright (c) 2026 AdrenSnyder https://github.com/adrensnyder
 #
@@ -23,8 +24,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 ###################################################################
-
-#!/bin/bash
 
 # PROGRAMS
 CAT=`which cat 2>/dev/null`
