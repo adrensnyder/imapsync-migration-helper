@@ -1,5 +1,5 @@
 ###################################################################
-# Copyright (c) 2023 AdrenSnyder https://github.com/adrensnyder
+# Copyright (c) 2026 AdrenSnyder https://github.com/adrensnyder
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
