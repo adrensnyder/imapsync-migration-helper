@@ -51,6 +51,7 @@ while IFS= read -r f; do
   base="${f##*/}"
 
   # skip logrotate output
+  [[ "$base" != *.log && "$base" != *%* ]] && continue
   [[ "$base" == *.gz ]] && continue
   [[ "$base" =~ \.[0-9]+(\.[0-9]+)*$ ]] && continue
 
