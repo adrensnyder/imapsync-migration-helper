@@ -1,5 +1,5 @@
 ###################################################################
-# Copyright (c) 2023 AdrenSnyder https://github.com/adrensnyder
+# Copyright (c) 2026 AdrenSnyder https://github.com/adrensnyder
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -45,27 +45,32 @@ if [ ! -d $LOGPATH ]; then
                             exit
 fi
 
-LIST=$(ls -1 $LOGPATH/*%*)
+shopt -s nullglob
+
+FILES=( "$LOGPATH"/*%* )
 
 LIST_NEW=""
 LIST_UNIQUE=""
-for file in $LIST; do
-    EMAIL=`echo $file | awk -F '%' '{ print $1 }'`
-    LIST_NEW="$LIST_NEW $EMAIL"
+
+for f in "${FILES[@]}"; do
+ base="${f##*/}"
+ prefix="${base%%\%*}"
+ LIST_NEW="$LIST_NEW $prefix"
 done
 
-LIST_UNIQUE=`echo $LIST_NEW | tr ' ' '\n' | sort -u`
+LIST_UNIQUE=$(echo "$LIST_NEW" | tr ' ' '\n' | sort -u)
 
-LASTLOGS=()  # inizializza array
+LASTLOGS=() # inizializza array
+
 echo -e "- ${RED}File list${NC}"
 
 for file in $LIST_UNIQUE; do
-    ((COUNT_LIST++))
-    LASTLOG=$(ls -1 -r "$LOGPATH/$file%"* | head -n1)
-    [[ -n "$LASTLOG" ]] && LASTLOGS+=("$LASTLOG")
-
-    echo "$file -> $LASTLOG"
+ ((COUNT_LIST++))
+ LASTLOG=$(ls -1 -r "$LOGPATH/$file%"* 2>/dev/null | head -n1)
+ [[ -n "$LASTLOG" ]] && LASTLOGS+=("$LASTLOG")
+ echo "$file -> $LASTLOG"
 done
+
 echo ""
 
 for file in "${LASTLOGS[@]}"; do
