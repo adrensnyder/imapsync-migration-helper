@@ -89,7 +89,7 @@ echo -e "- ${RED}File list${NC}"
 
 for p in "${LIST_UNIQUE[@]}"; do
   ((COUNT_LIST++))
-  # pick latest by filename ordering (your logs embed datetime in name)
+  # pick latest by modification time
   LASTLOG=$(
     for f in "${FILES[@]}"; do
       base="${f##*/}"
@@ -234,9 +234,10 @@ for file in "${LASTLOGS[@]}"; do
             n = split(log_full, L, /%/)
             log_name = L[1]
             log_dt   = (n >= 2 ? L[2] : "")
-
+            
             log_name = trim(log_name)
             log_dt   = trim(log_dt)
+            sub(/\.log$/, "", log_dt)
 
             p = log_name
             gsub(/\/+$/, "", p)
