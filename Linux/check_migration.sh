@@ -43,19 +43,34 @@ if [[ ! -d "$LOGPATH" ]]; then
   exit 1
 fi
 
-# --- Build LASTLOGS safely (works with absolute paths) ---
-shopt -s nullglob
+# --- Build LASTLOGS safely: supports .log, legacy % logs, and fixed-path logs ---
+FILES=()
 
-FILES=( "$LOGPATH"/*%* )
+while IFS= read -r f; do
+  base="${f##*/}"
+
+  # skip logrotate output
+  [[ "$base" == *.gz ]] && continue
+  [[ "$base" =~ \.[0-9]+(\.[0-9]+)*$ ]] && continue
+
+  FILES+=( "$f" )
+done < <(find "$LOGPATH" -maxdepth 1 -type f -printf '%p\n' 2>/dev/null)
+
 if [[ ${#FILES[@]} -eq 0 ]]; then
-  echo "No log files matching *%* found in: $LOGPATH"
+  echo "No log files found in: $LOGPATH"
   exit 0
 fi
 
 PREFIXES=()
 for f in "${FILES[@]}"; do
-  base="${f##*/}"        # filename only
-  prefix="${base%%\%*}"  # part before first %
+  base="${f##*/}"
+
+  if [[ "$base" == *%* ]]; then
+    prefix="${base%%\%*}"
+  else
+    prefix="${base%.log}"
+  fi
+
   PREFIXES+=( "$prefix" )
 done
 
@@ -74,7 +89,16 @@ echo -e "- ${RED}File list${NC}"
 for p in "${LIST_UNIQUE[@]}"; do
   ((COUNT_LIST++))
   # pick latest by filename ordering (your logs embed datetime in name)
-  LASTLOG=$(ls -1 -r -- "$LOGPATH/$p%"* 2>/dev/null | head -n1)
+  LASTLOG=$(
+    for f in "${FILES[@]}"; do
+      base="${f##*/}"
+ 
+      if [[ "$base" == "$p.log" || "$base" == "$p" || "$base" == "$p%"* ]]; then
+        printf '%s %s\n' "$(stat -c %Y "$f")" "$f"
+      fi
+    done | sort -nr | head -n1 | cut -d' ' -f2-
+  )
+  
   [[ -n "$LASTLOG" ]] && LASTLOGS+=( "$LASTLOG" )
   echo "$p -> $LASTLOG"
 done
