@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ###################################################################
 # Copyright (c) 2026 AdrenSnyder https://github.com/adrensnyder
 #
@@ -24,51 +26,77 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 ###################################################################
 
-#!/bin/bash
-
 EXCLUDE="INBOX|Sent Items|Deleted Items|Junk Email"
 #EXCLUDE="INBOX|Posta inviata/|Posta eliminata/|Posta indesiderata/"
 
-LOGPATH=$1
+set -u
+
+LOGPATH=${1:-}
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-if [[ "X$LOGPATH" == "X" ]]; then
-            echo "Enter a valid path for migration logs"
-                echo "Ex. /var/log/imapsync/job/data"
-                    exit
+if [[ -z "$LOGPATH" ]]; then
+  echo "Enter a valid path for migration logs"
+  echo "Ex. /var/log/imapsync/job/data"
+  exit 1
 fi
 
-if [ ! -d $LOGPATH ]; then
-                echo "Enter a valid path for migration logs"
-                        echo "Ex. /var/log/imapsync/job/data"
-                            exit
+if [[ ! -d "$LOGPATH" ]]; then
+  echo "Enter a valid path for migration logs"
+  echo "Ex. /var/log/imapsync/job/data"
+  exit 1
 fi
 
-shopt -s nullglob
+FILES=()
 
-FILES=( "$LOGPATH"/*%* )
+while IFS= read -r f; do
+  base="${f##*/}"
 
-LIST_NEW=""
-LIST_UNIQUE=""
+  # skip logrotate output
+  [[ "$base" == *.gz ]] && continue
+  [[ "$base" =~ \.[0-9]+(\.[0-9]+)*$ ]] && continue
+
+  FILES+=( "$f" )
+done < <(find "$LOGPATH" -maxdepth 1 -type f -printf '%p\n' 2>/dev/null)
+
+if [[ ${#FILES[@]} -eq 0 ]]; then
+  echo "No log files found in: $LOGPATH"
+  exit 0
+fi
+
+PREFIXES=()
 
 for f in "${FILES[@]}"; do
- base="${f##*/}"
- prefix="${base%%\%*}"
- LIST_NEW="$LIST_NEW $prefix"
+  base="${f##*/}"
+
+  if [[ "$base" == *%* ]]; then
+    prefix="${base%%\%*}"
+  else
+    prefix="${base%.log}"
+  fi
+
+  PREFIXES+=( "$prefix" )
 done
 
-LIST_UNIQUE=$(echo "$LIST_NEW" | tr ' ' '\n' | sort -u)
+mapfile -t LIST_UNIQUE < <(printf "%s\n" "${PREFIXES[@]}" | sort -u)
 
-LASTLOGS=() # inizializza array
+LASTLOGS=()
 
 echo -e "- ${RED}File list${NC}"
 
-for file in $LIST_UNIQUE; do
- ((COUNT_LIST++))
- LASTLOG=$(ls -1 -r "$LOGPATH/$file%"* 2>/dev/null | head -n1)
- [[ -n "$LASTLOG" ]] && LASTLOGS+=("$LASTLOG")
- echo "$file -> $LASTLOG"
+for file in "${LIST_UNIQUE[@]}"; do
+  LASTLOG=$(
+    for f in "${FILES[@]}"; do
+      base="${f##*/}"
+
+      if [[ "$base" == "$file.log" || "$base" == "$file" || "$base" == "$file%"* ]]; then
+        printf '%s %s\n' "$(stat -c %Y "$f")" "$f"
+      fi
+    done | sort -nr | head -n1 | cut -d' ' -f2-
+  )
+
+  [[ -n "$LASTLOG" ]] && LASTLOGS+=( "$LASTLOG" )
+  echo "$file -> $LASTLOG"
 done
 
 echo ""
