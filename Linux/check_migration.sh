@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ###################################################################
 # Copyright (c) 2026 AdrenSnyder https://github.com/adrensnyder
 #
@@ -24,7 +26,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 ###################################################################
 
-#!/bin/bash
 set -u
 
 LOGPATH=${1:-}
@@ -230,7 +231,7 @@ for file in "${LASTLOGS[@]}"; do
             for (i=6; i<=NF; i++) post = post "|" $i
 
             log_full = $1
-            n = split(log_full, L, /%20/)
+            n = split(log_full, L, /%/)
             log_name = L[1]
             log_dt   = (n >= 2 ? L[2] : "")
 
