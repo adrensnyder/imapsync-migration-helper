@@ -425,14 +425,14 @@ for line in $VAR_CREDS; do
     $CAT > "$WORKFILE" <<EOF
 #!/bin/bash
 
-DATE_NOW=$(date +"%Y-%m-%d_%H-%M-%S")
+DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
 
 LOG_FILE_BASE="$LOGFILE$MAIL_SOURCE""_$COUNT"
 
 if [[ -z "${FIXED_PATH:-}" ]]; then
-  LOG_FILE_NAME="${LOG_FILE_BASE}%${DATE_NOW}.log"
+  LOG_FILE_NAME="\${LOG_FILE_BASE}%\${DATE_NOW}.log"
 else
-  LOG_FILE_NAME="${LOG_FILE_BASE}.log"
+  LOG_FILE_NAME="\${LOG_FILE_BASE}.log"
 fi
 
 RUN_LOCK="$RUN_LOCK"
