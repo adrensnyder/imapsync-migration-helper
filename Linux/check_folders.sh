@@ -81,10 +81,13 @@ done
 mapfile -t LIST_UNIQUE < <(printf "%s\n" "${PREFIXES[@]}" | sort -u)
 
 LASTLOGS=()
+COUNT_LIST=0
 
 echo -e "- ${RED}File list${NC}"
 
 for file in "${LIST_UNIQUE[@]}"; do
+  ((COUNT_LIST++))
+
   LASTLOG=$(
     for f in "${FILES[@]}"; do
       base="${f##*/}"
