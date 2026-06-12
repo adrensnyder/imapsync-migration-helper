@@ -425,17 +425,14 @@ for line in $VAR_CREDS; do
     $CAT > "$WORKFILE" <<EOF
 #!/bin/bash
 
-DATE_NOW=\$(date +"%Y-%m-%d_%H-%M-%S")
+DATE_NOW=$(date +"%Y-%m-%d_%H-%M-%S")
 
-LOG_FILE_NAME="$LOGFILE$MAIL_SOURCE""_$COUNT"
+LOG_FILE_BASE="$LOGFILE$MAIL_SOURCE""_$COUNT"
 
 if [[ -z "${FIXED_PATH:-}" ]]; then
-    LOG_FILE_NAME="\${LOG_FILE_NAME}%\${DATE_NOW}"
-fi
-
-LOG_FILE_NAME="$LOGFILE$MAIL_SOURCE""_$COUNT"
-if [[ -z "${FIXED_PATH:-}" ]]; then
-    LOG_FILE_NAME="\${LOG_FILE_NAME}%\${DATE_NOW}"
+  LOG_FILE_NAME="${LOG_FILE_BASE}%${DATE_NOW}.log"
+else
+  LOG_FILE_NAME="${LOG_FILE_BASE}.log"
 fi
 
 RUN_LOCK="$RUN_LOCK"
@@ -697,7 +694,15 @@ count_imapsync_processes() {
 }
 
 # Check for the latest log file, and if it exists, perform a safety search using 'ls' in case nothing is found
-LASTLOG=`ls -1 -r "$LOGDIR/$LOGFILE$MAIL_SOURCE"* 2>/dev/null |head -n1`
+LASTLOG=$(find "$LOGDIR" -maxdepth 1 -type f \
+  -name "$LOGFILE$MAIL_SOURCE*.log" \
+  ! -name "*.log.[0-9]*" \
+  ! -name "*.gz" \
+  -printf '%T@ %p\n' 2>/dev/null \
+  | sort -nr \
+  | head -n1 \
+  | cut -d' ' -f2-)
+  
 if [ ! -f "\$LASTLOG" ]; then
         exit
 fi
