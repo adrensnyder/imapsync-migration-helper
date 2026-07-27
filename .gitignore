@@ -1,0 +1,77 @@
+# Local documentation and working notes
+Docs/
+
+# Codex
+.agents/
+.codex-plugins/
+
+# IMAP migration runtime output
+Data/
+Execs/
+log/
+logs/
+*.log
+*.tmp
+*.bak
+*.old
+
+# OAuth/token files generated for migration jobs
+*_token_auth
+*_token_imapsync
+retoken_*.sh
+retoken_*-job.txt
+cronjob.txt
+
+# Microsoft 365 app exports and secrets
+365APP_*.json
+*.secret
+*.secrets
+*.key
+*.pem
+
+# Customer/job data exports. Keep templates versioned.
+*.csv
+!*.csv.example
+*.xlsx
+!Microsoft/Permissions/SingleFiles/00_CreatingPermissionsHelper-PS.xlsx
+!Microsoft/Alias/SingleFiles/00_CreatingAliasHelper-PS.xlsx
+!Microsoft/DistributionLists/SingleFiles/00_CreatingListsHelper-PS.xlsx
+Guids.csv
+DeletedEmailsAuditReport_*.csv
+
+# PowerShell local/runtime noise
+*.ps1xml
+*.psm1.tmp
+Transcript*.txt
+
+# Python/cache/editor noise
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local .NET CLI/NuGet cache used by this workspace
+.dotnet_home/
+.nuget_packages/
+node_modules/
+
+# C# / Visual Studio output
+Client/**/bin/
+Client/**/obj/
+Client/**/.vs/
+Client/**/.buildcheck/
+Client/**/*.user
+Client/**/*.suo
+Client/**/appsettings.Local.json
+Client/**/job.local.json
+
+# Local application data
+data/
+**/data/client.db
+**/data/client.db-shm
+**/data/client.db-wal
